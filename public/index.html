@@ -1,75 +1,79 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cadu Assistente</title>
-<style>
-  body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
-  #resposta { margin-top: 20px; font-weight: bold; min-height: 50px; }
-  input, button { padding: 10px; margin: 5px; font-size: 16px; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cadu Assistente</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f0f0f0; padding: 20px; }
+    #chat { max-width: 600px; margin: auto; background: #fff; padding: 20px; border-radius: 10px; }
+    #messages { min-height: 200px; border: 1px solid #ccc; padding: 10px; border-radius: 5px; overflow-y: auto; }
+    #input { display: flex; margin-top: 10px; }
+    #input input { flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #ccc; }
+    #input button { padding: 10px; margin-left: 5px; border-radius: 5px; border: none; background: #007bff; color: #fff; cursor: pointer; }
+    #input button:hover { background: #0056b3; }
+  </style>
 </head>
 <body>
-<h1>Cadu Assistente</h1>
+  <div id="chat">
+    <h2>Cadu</h2>
+    <div id="messages"></div>
+    <div id="input">
+      <input type="text" id="userInput" placeholder="Digite sua pergunta ou fale pelo microfone">
+      <button id="sendBtn">Enviar</button>
+      <button id="micBtn">🎤</button>
+    </div>
+  </div>
 
-<input type="text" id="pergunta" placeholder="Digite sua pergunta aqui">
-<button id="enviar">Enviar</button>
-<button id="microfone">🎤 Falar</button>
+  <script>
+    const messagesDiv = document.getElementById('messages');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const micBtn = document.getElementById('micBtn');
 
-<div id="resposta"></div>
+    async function sendMessage(text) {
+      if(!text) return;
+      messagesDiv.innerHTML += `<div><b>Você:</b> ${text}</div>`;
+      userInput.value = '';
 
-<script>
-const perguntaInput = document.getElementById("pergunta");
-const enviarBtn = document.getElementById("enviar");
-const microfoneBtn = document.getElementById("microfone");
-const respostaDiv = document.getElementById("resposta");
+      try {
+        const res = await fetch('/cadu', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pergunta: text })
+        });
+        const data = await res.json();
+        messagesDiv.innerHTML += `<div><b>Cadu:</b> ${data.message}</div>`;
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      } catch(e) {
+        messagesDiv.innerHTML += `<div style="color:red;"><b>Erro ao consultar Cadu</b></div>`;
+      }
+    }
 
-async function enviarPergunta(question) {
-  respostaDiv.textContent = "Cadu está pensando...";
-  try {
-    const res = await fetch("/ask", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question })
+    sendBtn.addEventListener('click', () => sendMessage(userInput.value));
+    userInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(userInput.value); });
+
+    // Microfone
+    let recognition;
+    if('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechRecognition();
+      recognition.lang = 'pt-BR';
+      recognition.continuous = false;
+
+      recognition.onresult = (event) => {
+        const speech = event.results[0][0].transcript;
+        sendMessage(speech);
+      };
+
+      recognition.onerror = (event) => {
+        messagesDiv.innerHTML += `<div style="color:red;"><b>Erro no microfone:</b> ${event.error}</div>`;
+      };
+    }
+
+    micBtn.addEventListener('click', () => {
+      if(recognition) recognition.start();
     });
-    const data = await res.json();
-    const resposta = data.answer || "Desculpe, não consegui responder.";
-    respostaDiv.textContent = resposta;
-
-    // Fala a resposta
-    const utter = new SpeechSynthesisUtterance(resposta);
-    utter.lang = "pt-BR";
-    speechSynthesis.speak(utter);
-  } catch (err) {
-    respostaDiv.textContent = "Erro ao consultar Cadu.";
-    console.error(err);
-  }
-}
-
-// Clique no botão enviar
-enviarBtn.addEventListener("click", () => {
-  const question = perguntaInput.value.trim();
-  if (question) enviarPergunta(question);
-});
-
-// Microfone
-microfoneBtn.addEventListener("click", () => {
-  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-  recognition.lang = "pt-BR";
-  recognition.start();
-  recognition.onresult = (event) => {
-    const text = event.results[0][0].transcript;
-    perguntaInput.value = text;
-    enviarPergunta(text);
-  };
-  recognition.onerror = (err) => console.error("Erro no reconhecimento:", err);
-});
-
-// Enter envia
-perguntaInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") enviarBtn.click();
-});
-</script>
+  </script>
 </body>
 </html>
