@@ -57,3 +57,5 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Cadu backend rodando na porta ${PORT}`);
 });
+
+console.log("HF_API_KEY está carregada?", !!process.env.HF_API_KEY);
