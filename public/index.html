@@ -14,6 +14,7 @@
 <h1>Cadu</h1>
 <input type="text" id="pergunta" placeholder="Fala ou digita aqui..." />
 <button onclick="fazerPergunta()">Perguntar</button>
+<button onclick="falarComCadu()">🎤 Falar</button>
 <p id="resposta"></p>
 
 <script>
@@ -37,8 +38,6 @@ async function fazerPergunta() {
 
         if (data.message) {
             respostaEl.innerText = data.message;
-
-            // Fala a resposta no fone
             const fala = new SpeechSynthesisUtterance(data.message);
             fala.lang = 'pt-BR';
             speechSynthesis.speak(fala);
@@ -49,6 +48,33 @@ async function fazerPergunta() {
         console.error(err);
         respostaEl.innerText = "Opa, deu algum erro. Tenta de novo!";
     }
+}
+
+// Função para usar o microfone
+function falarComCadu() {
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+        alert('Seu navegador não suporta reconhecimento de voz.');
+        return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'pt-BR';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.start();
+
+    recognition.onresult = (event) => {
+        const texto = event.results[0][0].transcript;
+        document.getElementById('pergunta').value = texto;
+        fazerPergunta();
+    };
+
+    recognition.onerror = (event) => {
+        console.error('Erro no reconhecimento de voz:', event.error);
+        alert('Erro ao capturar sua voz.');
+    };
 }
 </script>
 </body>
