@@ -7,41 +7,43 @@ const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static("public")); // garante que o index.html e assets sejam servidos
 
-// Endpoint para perguntas ao Cadu via Hugging Face
+// Endpoint GPT/Hugging Face
 app.post("/cadu", async (req, res) => {
   try {
     const pergunta = req.body.pergunta;
-    const hfToken = process.env.HF_API_KEY; // token configurado no Secrets
-    const model = "bigcode/starcoder"; // substitua pelo modelo correto HF que você escolheu
+    const apiKey = process.env.HF_API_KEY; // variável do secrets
+    const modelo = "NomeDoModeloLL"; // substitua pelo modelo que você quer usar
 
-    const response = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+    const r = await fetch(`https://api-inference.huggingface.co/models/${modelo}`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${hfToken}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ inputs: pergunta }),
+      body: JSON.stringify({
+        inputs: pergunta,
+      }),
     });
 
-    const data = await response.json();
+    const data = await r.json();
 
-    // Confere se a resposta veio no formato esperado
-    if (Array.isArray(data) && data[0].generated_text) {
-      res.json({ message: data[0].generated_text });
-    } else {
-      res.status(500).json({ message: "Erro ao consultar HF: resposta inesperada" });
+    // verificação de erro
+    if (!data || data.error) {
+      return res.status(500).json({ message: "Erro ao consultar HF", data });
     }
+
+    // resposta do modelo
+    res.json({ message: data[0]?.generated_text || "Sem resposta do modelo" });
   } catch (err) {
     console.error("Erro ao consultar HF:", err);
     res.status(500).json({ message: "Erro ao consultar HF" });
   }
 });
 
-// Endpoint raiz
+// Root
 app.get("/", (req, res) => {
-  res.sendFile("index.html", { root: "public" });
+  res.send("Cadu backend rodando!");
 });
 
 // Mantém o servidor ativo
