@@ -4,55 +4,51 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cadu - Assistente Pessoal</title>
+<style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #resposta { margin-top: 20px; font-weight: bold; }
+    button { margin-left: 10px; }
+</style>
 </head>
 <body>
 <h1>Cadu</h1>
 <input type="text" id="pergunta" placeholder="Fala ou digita aqui..." />
 <button onclick="fazerPergunta()">Perguntar</button>
-<button onclick="ativarMicrofone()">🎤 Falar</button>
 <p id="resposta"></p>
 
 <script>
 async function fazerPergunta() {
-    const pergunta = document.getElementById('pergunta').value;
+    const pergunta = document.getElementById('pergunta').value.trim();
     const respostaEl = document.getElementById('resposta');
-    let resposta = "";
+    if (!pergunta) return;
+
+    respostaEl.innerText = "Aguardando resposta do Cadu...";
 
     try {
         const r = await fetch('/cadu', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({ pergunta })
         });
+
         const data = await r.json();
-        resposta = data.message;
-    } catch(err) {
-        resposta = "Opa, deu algum erro. Tenta de novo!";
+
+        if (data.message) {
+            respostaEl.innerText = data.message;
+
+            // Fala a resposta no fone
+            const fala = new SpeechSynthesisUtterance(data.message);
+            fala.lang = 'pt-BR';
+            speechSynthesis.speak(fala);
+        } else {
+            respostaEl.innerText = "Opa, não consegui obter resposta.";
+        }
+    } catch (err) {
         console.error(err);
+        respostaEl.innerText = "Opa, deu algum erro. Tenta de novo!";
     }
-
-    respostaEl.innerText = resposta;
-
-    const fala = new SpeechSynthesisUtterance(resposta);
-    fala.lang = 'pt-BR';
-    speechSynthesis.speak(fala);
-}
-
-// Função para ativar microfone e transformar fala em texto
-function ativarMicrofone() {
-    const reconhecimento = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    reconhecimento.lang = 'pt-BR';
-    reconhecimento.start();
-
-    reconhecimento.onresult = function(event) {
-        const texto = event.results[0][0].transcript;
-        document.getElementById('pergunta').value = texto;
-        fazerPergunta();
-    };
-
-    reconhecimento.onerror = function(event) {
-        console.error('Erro no reconhecimento de fala:', event.error);
-    };
 }
 </script>
 </body>
