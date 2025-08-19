@@ -4,88 +4,38 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cadu - Assistente Pessoal</title>
-<style>
-  body { font-family: Arial, sans-serif; padding: 20px; }
-  input, button { padding: 10px; font-size: 16px; margin: 5px 0; }
-</style>
 </head>
 <body>
-<h1>Cadu - Assistente Pessoal</h1>
-
+<h1>Cadu</h1>
 <input type="text" id="pergunta" placeholder="Fala ou digita aqui..." />
 <button onclick="fazerPergunta()">Perguntar</button>
-<button onclick="ouvir()">🎤 Falar</button>
-
 <p id="resposta"></p>
 
 <script>
-const backendURL = "https://cadu-assistente.onrender.com"; // coloque aqui o link do seu backend
-
-// Função para enviar pergunta e receber resposta
 async function fazerPergunta() {
     const pergunta = document.getElementById('pergunta').value;
     const respostaEl = document.getElementById('resposta');
     let resposta = "";
 
-    if(!pergunta) return;
-
     try {
-        // Cotação do dólar
-        if(pergunta.toLowerCase().includes("dólar")) {
-            const r = await fetch(`${backendURL}/dolar`);
-            const data = await r.json();
-            resposta = data.message;
-        } 
-        // Clima
-        else if(pergunta.toLowerCase().includes("clima") || pergunta.toLowerCase().includes("tempo")) {
-            const r = await fetch(`${backendURL}/clima`);
-            const data = await r.json();
-            resposta = data.message;
-        } 
-        // Perguntas gerais GPT
-        else {
-            const r = await fetch(`${backendURL}/cadu`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ pergunta })
-            });
-            const data = await r.json();
-            resposta = data.message;
-        }
+        const r = await fetch("/cadu", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pergunta })
+        });
+        const data = await r.json();
+        resposta = data.message;
     } catch(err) {
         resposta = "Opa, deu algum erro. Tenta de novo!";
         console.error(err);
     }
 
     respostaEl.innerText = resposta;
-    falar(resposta);
-}
 
-// Função para sintetizar fala
-function falar(texto) {
-    const fala = new SpeechSynthesisUtterance(texto);
+    // Falar a resposta
+    const fala = new SpeechSynthesisUtterance(resposta);
     fala.lang = 'pt-BR';
     speechSynthesis.speak(fala);
-}
-
-// Função para capturar voz do fone
-function ouvir() {
-    const reconhecimento = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    reconhecimento.lang = 'pt-BR';
-    reconhecimento.interimResults = false;
-    reconhecimento.maxAlternatives = 1;
-
-    reconhecimento.start();
-
-    reconhecimento.onresult = function(event) {
-        const fala = event.results[0][0].transcript;
-        document.getElementById('pergunta').value = fala;
-        fazerPergunta();
-    }
-
-    reconhecimento.onerror = function(event) {
-        console.error(event.error);
-    }
 }
 </script>
 </body>
