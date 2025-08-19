@@ -1,63 +1,49 @@
 import express from "express";
-import cors from "cors";
 import fetch from "node-fetch";
+import cors from "cors";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3001; // Já evita conflito com 3000
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static("public")); // Para servir index.html
 
-// Serve arquivos estáticos da pasta 'public'
-app.use(express.static("public"));
+// Rota para processar a pergunta
+app.post("/ask", async (req, res) => {
+  const { question } = req.body;
 
-// Endpoint GPT / perguntas gerais
-app.post("/cadu", async (req, res) => {
+  if (!question) {
+    return res.status(400).json({ error: "Pergunta não fornecida" });
+  }
+
   try {
-    const pergunta = req.body.pergunta;
-    const apiKey = process.env.HF_API_KEY; // token HF no Secrets
-    const modelo = "gpt-llama-2-7b-chat"; // exemplo de modelo correto HF
-
-    const response = await fetch(
-      `https://api-inference.huggingface.co/models/${modelo}`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          inputs: pergunta,
-        }),
-      }
-    );
+    const response = await fetch("https://api.deepai.org/api/text-generator", {
+      method: "POST",
+      headers: {
+        "Api-Key": process.env.DEEP_API_KEY, // sua chave no secrets
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ text: question })
+    });
 
     const data = await response.json();
 
-    if (data.error) {
-      return res
-        .status(500)
-        .json({ message: `Erro ao consultar HF: ${data.error}` });
+    // O DeepAI retorna a resposta em data.output
+    if (!data.output) {
+      return res.status(500).json({ error: "Resposta inválida da DeepAI" });
     }
 
-    // Lida com respostas de texto do HF
-    const mensagem = Array.isArray(data)
-      ? data[0].generated_text
-      : data.generated_text || "Resposta vazia";
-
-    res.json({ message: mensagem });
-  } catch (err) {
-    console.error("Erro ao consultar HF:", err);
-    res.status(500).json({ message: "Erro ao consultar HF" });
+    res.json({ answer: data.output });
+  } catch (error) {
+    console.error("Erro ao consultar DeepAI:", error);
+    res.status(500).json({ error: "Erro ao consultar DeepAI" });
   }
 });
 
-// Root
-app.get("/", (req, res) => {
-  res.send("Cadu backend rodando!");
-});
-
-// Inicia servidor
 app.listen(PORT, () => {
   console.log(`Cadu backend rodando na porta ${PORT}`);
 });
