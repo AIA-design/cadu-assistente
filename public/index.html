@@ -9,6 +9,7 @@
 <h1>Cadu</h1>
 <input type="text" id="pergunta" placeholder="Fala ou digita aqui..." />
 <button onclick="fazerPergunta()">Perguntar</button>
+<button onclick="ativarMicrofone()">🎤 Falar</button>
 <p id="resposta"></p>
 
 <script>
@@ -32,10 +33,26 @@ async function fazerPergunta() {
 
     respostaEl.innerText = resposta;
 
-    // Falar a resposta no fone
     const fala = new SpeechSynthesisUtterance(resposta);
     fala.lang = 'pt-BR';
     speechSynthesis.speak(fala);
+}
+
+// Função para ativar microfone e transformar fala em texto
+function ativarMicrofone() {
+    const reconhecimento = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    reconhecimento.lang = 'pt-BR';
+    reconhecimento.start();
+
+    reconhecimento.onresult = function(event) {
+        const texto = event.results[0][0].transcript;
+        document.getElementById('pergunta').value = texto;
+        fazerPergunta();
+    };
+
+    reconhecimento.onerror = function(event) {
+        console.error('Erro no reconhecimento de fala:', event.error);
+    };
 }
 </script>
 </body>
