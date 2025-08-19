@@ -1,137 +1,92 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cadu — seu assistente</title>
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 16px; }
-    .row { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
-    #micBtn { font-size: 18px; padding: 14px 18px; border-radius: 12px; }
-    #askBtn { padding: 12px 14px; border-radius: 10px; }
-    #text { flex:1; padding: 12px; border-radius: 10px; font-size:16px; min-width: 220px; }
-    #out { margin-top: 14px; white-space: pre-wrap; }
-    .small { color:#666; font-size: 12px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cadu - Assistente Pessoal</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; }
+  input, button { padding: 10px; font-size: 16px; margin: 5px 0; }
+</style>
 </head>
 <body>
-  <h2>👋 Oi, eu sou o <b>Cadu</b></h2>
-  <div class="row">
-    <input id="text" placeholder="Pergunte (ex.: 'Cadu, como está o dólar?')" />
-    <button id="askBtn">Perguntar</button>
-    <button id="micBtn">🎤 Segure p/ falar</button>
-  </div>
-  <div id="out"></div>
-  <p class="small">Dicas: “Como está o <b>tempo</b> em Fortaleza?”, “Qual a <b>cotação do dólar</b>?”.</p>
+<h1>Cadu - Assistente Pessoal</h1>
+
+<input type="text" id="pergunta" placeholder="Fala ou digita aqui..." />
+<button onclick="fazerPergunta()">Perguntar</button>
+<button onclick="ouvir()">🎤 Falar</button>
+
+<p id="resposta"></p>
 
 <script>
-const out = document.getElementById('out');
-const textInput = document.getElementById('text');
-const askBtn = document.getElementById('askBtn');
-const micBtn = document.getElementById('micBtn');
+const backendURL = "https://cadu-assistente.onrender.com"; // coloque aqui o link do seu backend
 
-function speak(pt) {
-  try {
-    const u = new SpeechSynthesisUtterance(pt);
-    u.lang = 'pt-BR';
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
-  } catch(_) {}
-}
+// Função para enviar pergunta e receber resposta
+async function fazerPergunta() {
+    const pergunta = document.getElementById('pergunta').value;
+    const respostaEl = document.getElementById('resposta');
+    let resposta = "";
 
-function show(msg) { out.textContent = msg; speak(msg); }
+    if(!pergunta) return;
 
-// Decide rota (dólar, clima, ou LLM)
-async function routeQuestion(q) {
-  const ql = (q || "").toLowerCase();
-
-  // dólar
-  if (/\bdólar|usd|cotação\b/.test(ql)) {
-    const r = await fetch('/api/usdbrl'); const j = await r.json();
-    return j.ok ? j.answer : (j.error || "Não consegui ver a cotação.");
-  }
-
-  // clima/tempo — tenta achar cidade depois de “em ...”
-  if (/\bclima|tempo|temperatura\b/.test(ql)) {
-    const m = ql.match(/\b(?:em|no|na)\s+([a-zà-ÿ\s\-]+)$/i);
-    const cidade = m ? m[1].trim().replace(/\s+/g,' ') : 'Fortaleza';
-    const r = await fetch(`/api/weather?city=${encodeURIComponent(cidade)}`);
-    const j = await r.json();
-    return j.ok ? j.answer : (j.error || "Não consegui ver o clima.");
-  }
-
-  // (Opcional) pesquisa web: se começar com "pesquise" ou "busque"
-  if (/\b(pesquise|busque)\b/.test(ql)) {
-    const q2 = q.replace(/^(pesquise|busque)\s*/i,'').trim();
-    const r = await fetch(`/api/search?q=${encodeURIComponent(q2)}`);
-    const j = await r.json();
-    if (j.ok && j.result?.answer) return j.result.answer;
-    return "Pesquisa feita, mas não encontrei um resumo útil.";
-  }
-
-  // caso geral: LLM
-  const r = await fetch('/api/ask', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ text: q })
-  });
-  const j = await r.json();
-  return j.ok ? j.answer : (j.error || "Não consegui responder agora.");
-}
-
-// Clique no botão “Perguntar”
-askBtn.onclick = async () => {
-  const q = textInput.value.trim();
-  if (!q) return;
-  show("⏳ pensando...");
-  const a = await routeQuestion(q);
-  show(a);
-};
-
-// Gravação de voz (segurar para gravar)
-let mediaRecorder, chunks=[], recording=false;
-async function startRec() {
-  const types = [
-    'audio/webm;codecs=opus',
-    'audio/mp4', // iOS costuma aceitar
-    'audio/webm'
-  ];
-  const mimeType = types.find(t => MediaRecorder.isTypeSupported?.(t)) || '';
-  const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
-  mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
-  chunks = [];
-  mediaRecorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
-  mediaRecorder.onstop = async () => {
-    const blob = new Blob(chunks, { type: mimeType || 'audio/webm' });
-    const fd = new FormData();
-    fd.append('audio', blob, 'fala.webm');
-    show("⏳ transcrevendo...");
     try {
-      const r = await fetch('/api/stt', { method:'POST', body: fd });
-      const j = await r.json();
-      if (!j.ok) return show("Não entendi sua fala.");
-      const q = j.text?.trim() || "";
-      textInput.value = q;
-      show("⏳ pensando...");
-      const a = await routeQuestion(q);
-      show(a);
-    } catch {
-      show("Falha ao enviar áudio.");
+        // Cotação do dólar
+        if(pergunta.toLowerCase().includes("dólar")) {
+            const r = await fetch(`${backendURL}/dolar`);
+            const data = await r.json();
+            resposta = data.message;
+        } 
+        // Clima
+        else if(pergunta.toLowerCase().includes("clima") || pergunta.toLowerCase().includes("tempo")) {
+            const r = await fetch(`${backendURL}/clima`);
+            const data = await r.json();
+            resposta = data.message;
+        } 
+        // Perguntas gerais GPT
+        else {
+            const r = await fetch(`${backendURL}/cadu`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pergunta })
+            });
+            const data = await r.json();
+            resposta = data.message;
+        }
+    } catch(err) {
+        resposta = "Opa, deu algum erro. Tenta de novo!";
+        console.error(err);
     }
-  };
-  mediaRecorder.start();
-  recording = true;
-  micBtn.textContent = "🛑 Solte para enviar";
+
+    respostaEl.innerText = resposta;
+    falar(resposta);
 }
-function stopRec() {
-  try { mediaRecorder?.stop(); } catch(_) {}
-  recording = false;
-  micBtn.textContent = "🎤 Segure p/ falar";
+
+// Função para sintetizar fala
+function falar(texto) {
+    const fala = new SpeechSynthesisUtterance(texto);
+    fala.lang = 'pt-BR';
+    speechSynthesis.speak(fala);
 }
-micBtn.onmousedown = startRec;
-micBtn.onmouseup = stopRec;
-micBtn.ontouchstart = (e)=>{ e.preventDefault(); startRec(); };
-micBtn.ontouchend   = (e)=>{ e.preventDefault(); stopRec(); };
+
+// Função para capturar voz do fone
+function ouvir() {
+    const reconhecimento = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    reconhecimento.lang = 'pt-BR';
+    reconhecimento.interimResults = false;
+    reconhecimento.maxAlternatives = 1;
+
+    reconhecimento.start();
+
+    reconhecimento.onresult = function(event) {
+        const fala = event.results[0][0].transcript;
+        document.getElementById('pergunta').value = fala;
+        fazerPergunta();
+    }
+
+    reconhecimento.onerror = function(event) {
+        console.error(event.error);
+    }
+}
 </script>
 </body>
 </html>
