@@ -2,7 +2,7 @@
   "name": "cadu-backend",
   "version": "1.0.0",
   "type": "module",
-  "main": "server.js",
+  "main": "teste-gpt.js",
   "scripts": {
     "start": "node teste-gpt.js"
   },
