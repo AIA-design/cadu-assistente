@@ -1,6 +1,5 @@
 import fetch from "node-fetch";
 
-// Função para testar GPT
 async function testarGPT(pergunta) {
     const apiKey = process.env.OPENAI_API_KEY;
 
@@ -24,15 +23,18 @@ async function testarGPT(pergunta) {
 
         const data = await r.json();
 
+        // Mostrar log completo da resposta
+        console.log("Resposta bruta da OpenAI:", JSON.stringify(data, null, 2));
+
+        // Verificar se existe a mensagem antes de acessar
         if (data.choices && data.choices[0] && data.choices[0].message) {
             console.log("Resposta GPT:", data.choices[0].message.content);
         } else {
-            console.error("Erro ao consultar GPT:", data);
+            console.error("A resposta da OpenAI não possui choices[0].message");
         }
     } catch (err) {
         console.error("Erro ao consultar GPT:", err);
     }
 }
 
-// Teste rápido
 testarGPT("Qual a cotação do dólar hoje?");
