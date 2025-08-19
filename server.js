@@ -11,25 +11,24 @@ app.use(express.json());
 app.post("/cadu", async (req, res) => {
   try {
     const pergunta = req.body.pergunta;
-    const apiKey = process.env.HF_API_KEY; // variável do secrets
+    const apiKey = process.env.DEEP_API_KEY; // variável do secrets
 
-    const r = await fetch("https://api-inference.huggingface.co/models/gpt-neo-2.7B", {
+    const r = await fetch("https://api.deepai.org/api/text-generator", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
+        "Api-Key": apiKey,
+        "Content-Type": "application/x-www-form-urlencoded"
       },
-      body: JSON.stringify({ inputs: pergunta })
+      body: new URLSearchParams({ text: pergunta })
     });
 
     const data = await r.json();
-    // Verifica se a resposta veio
-    const message = data[0]?.generated_text || "Não consegui gerar a resposta.";
+    const message = data.output || "Não consegui gerar a resposta.";
 
     res.json({ message });
   } catch (err) {
-    console.error("Erro ao consultar HF:", err);
-    res.status(500).json({ message: "Erro ao consultar HF" });
+    console.error("Erro ao consultar DeepAI:", err);
+    res.status(500).json({ message: "Erro ao consultar DeepAI" });
   }
 });
 
