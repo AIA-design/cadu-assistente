@@ -5,96 +5,76 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cadu Assistente</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 40px;
-      background-color: #f4f4f4;
-    }
-    h1 {
-      text-align: center;
-      color: #333;
-    }
-    #resposta {
-      margin-top: 20px;
-      padding: 15px;
-      background: #fff;
-      border-radius: 8px;
-      min-height: 50px;
-    }
-    input[type="text"] {
-      width: 70%;
-      padding: 10px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
-    button {
-      padding: 10px 15px;
-      border-radius: 6px;
-      border: none;
-      background-color: #007bff;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
+    body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 50px; }
+    #chat { width: 100%; max-width: 500px; border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; margin-bottom: 10px; }
+    input, button { padding: 10px; font-size: 16px; }
+    #input-container { display: flex; width: 100%; max-width: 500px; gap: 5px; }
   </style>
 </head>
 <body>
   <h1>Cadu Assistente</h1>
-  <div>
-    <input type="text" id="pergunta" placeholder="Digite sua pergunta aqui...">
-    <button onclick="enviarPergunta()">Enviar</button>
-    <button onclick="iniciarMicrofone()">🎤</button>
+  <div id="chat"></div>
+  <div id="input-container">
+    <input type="text" id="userInput" placeholder="Digite sua pergunta..." />
+    <button id="sendBtn">Enviar</button>
+    <button id="micBtn">🎤</button>
   </div>
-  <div id="resposta">Aguardando pergunta...</div>
 
   <script>
-    const respostaDiv = document.getElementById('resposta');
+    const chat = document.getElementById('chat');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const micBtn = document.getElementById('micBtn');
 
-    async function enviarPergunta() {
-      const pergunta = document.getElementById('pergunta').value;
-      if (!pergunta) return;
-      
-      respostaDiv.textContent = "Cadu está pensando...";
+    // Função para adicionar mensagem no chat
+    function addMessage(sender, text) {
+      const p = document.createElement('p');
+      p.innerHTML = `<strong>${sender}:</strong> ${text}`;
+      chat.appendChild(p);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    // Função para enviar pergunta pro backend
+    async function sendMessage(text) {
+      addMessage('Você', text);
       try {
         const res = await fetch('/cadu', {
           method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ pergunta })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pergunta: text })
         });
         const data = await res.json();
-        respostaDiv.textContent = data.message;
-        falar(data.message);
-      } catch(err) {
-        respostaDiv.textContent = "Erro ao consultar Cadu.";
+        addMessage('Cadu', data.message);
+      } catch (err) {
+        addMessage('Cadu', 'Erro ao consultar HF');
+        console.error(err);
       }
     }
 
-    function falar(texto) {
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(texto);
-        speechSynthesis.speak(utterance);
+    sendBtn.addEventListener('click', () => {
+      if (userInput.value.trim() !== '') {
+        sendMessage(userInput.value.trim());
+        userInput.value = '';
       }
-    }
+    });
 
-    function iniciarMicrofone() {
-      if (!('webkitSpeechRecognition' in window)) {
-        alert("Seu navegador não suporta reconhecimento de voz.");
-        return;
-      }
-      const recognition = new webkitSpeechRecognition();
-      recognition.lang = 'pt-BR';
+    userInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendBtn.click();
+    });
+
+    // Reconhecimento de voz
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'pt-BR';
+    recognition.continuous = false;
+
+    micBtn.addEventListener('click', () => {
       recognition.start();
-      recognition.onresult = (event) => {
-        const fala = event.results[0][0].transcript;
-        document.getElementById('pergunta').value = fala;
-        enviarPergunta();
-      };
-      recognition.onerror = () => {
-        alert("Erro no reconhecimento de voz.");
-      };
-    }
+    });
+
+    recognition.onresult = (event) => {
+      const spokenText = event.results[0][0].transcript;
+      sendMessage(spokenText);
+    };
   </script>
 </body>
 </html>
