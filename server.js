@@ -1,61 +1,60 @@
 import express from "express";
 import cors from "cors";
-import fetch from "node-fetch"; // Node 22+ já suporta fetch nativo, mas manter para compatibilidade
+import fetch from "node-fetch";
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3001; // Use porta disponível
 
-// Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static("public")); // Serve index.html e outros arquivos estáticos
 
-// Endpoint para perguntas ao Hugging Face
+// Endpoint para perguntas ao Cadu
 app.post("/cadu", async (req, res) => {
   try {
     const pergunta = req.body.pergunta;
-    const hfApiKey = process.env.HF_API_KEY;
+    const apiKey = process.env.HF_API_KEY;
 
-    if (!hfApiKey) {
-      return res.status(500).json({ message: "HF_API_KEY não encontrada no Secrets" });
-    }
-
-    const response = await fetch(
-      "https://api-inference.huggingface.co/models/gpt2", // substitua pelo modelo que você escolheu
+    const r = await fetch(
+      "https://api-inference.huggingface.co/models/meta-llama/Llama-2-7b-chat-hf",
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${hfApiKey}`,
+          "Authorization": `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ inputs: pergunta }),
       }
     );
 
-    const data = await response.json();
+    const data = await r.json();
 
-    // Verifica se a resposta está no formato esperado
     if (data.error) {
-      return res.status(500).json({ message: `Erro API HF: ${data.error}` });
+      return res.status(500).json({ message: `Erro ao consultar HF: ${data.error}` });
     }
 
-    // A resposta geralmente vem em data[0].generated_text
-    const resposta = data[0]?.generated_text || "Não consegui gerar uma resposta.";
+    // A resposta do modelo pode vir em array ou string, depende do modelo
+    let resposta = "";
+    if (Array.isArray(data) && data[0].generated_text) {
+      resposta = data[0].generated_text;
+    } else if (data.generated_text) {
+      resposta = data.generated_text;
+    } else {
+      resposta = "Não foi possível obter resposta do modelo.";
+    }
+
     res.json({ message: resposta });
   } catch (err) {
     console.error("Erro ao consultar HF:", err);
-    res.status(500).json({ message: "Erro ao consultar o Cadu" });
+    res.status(500).json({ message: "Erro ao consultar HF" });
   }
 });
 
 // Root
 app.get("/", (req, res) => {
-  res.sendFile("index.html", { root: "public" });
+  res.send("Cadu backend rodando!");
 });
 
-// Inicia o servidor
+// Mantém servidor ativo
 app.listen(PORT, () => {
   console.log(`Cadu backend rodando na porta ${PORT}`);
 });
-
-console.log("HF_API_KEY está carregada?", !!process.env.HF_API_KEY);
