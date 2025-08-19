@@ -60,7 +60,11 @@ app.post("/cadu", async (req, res) => {
       }),
     });
     const data = await r.json();
-    res.json({ message: data.choices[0].message.content });
+    if (!data.choices || data.choices.length === 0) {
+  console.error("Resposta GPT inválida:", data);
+  return res.status(500).json({ message: "Erro na resposta do GPT" });
+}
+res.json({ message: data.choices[0].message.content });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Erro ao consultar o GPT" });
