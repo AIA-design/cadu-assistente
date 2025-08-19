@@ -18,9 +18,9 @@ async function fazerPergunta() {
     let resposta = "";
 
     try {
-        const r = await fetch("/cadu", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+        const r = await fetch('/cadu', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ pergunta })
         });
         const data = await r.json();
@@ -32,7 +32,7 @@ async function fazerPergunta() {
 
     respostaEl.innerText = resposta;
 
-    // Falar a resposta
+    // Falar a resposta no fone
     const fala = new SpeechSynthesisUtterance(resposta);
     fala.lang = 'pt-BR';
     speechSynthesis.speak(fala);
